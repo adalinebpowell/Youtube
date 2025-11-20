@@ -1,0 +1,263 @@
+---
+title: "Trending Gaming Videos from three days"
+author: "Adaline Powell"
+date: "2025-11-20"
+output: html_document
+---
+
+
+```{r}
+kreek <- read.csv("~/Desktop/Ideas in Data/Group 7/Project/TRENDINGGAMING.csv", comment.char="#")
+```
+
+
+
+# EDA
+
+## Engagement Variables
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+p1 <- ggplot(kreek, aes(x=Views)) + 
+  geom_histogram(bins=20, fill="lightblue") + 
+  labs(title="Distribution of Views",
+    y = "Frequency")
+
+p2 <- ggplot(kreek, aes(x=Likes)) + 
+  geom_histogram(bins=20, fill="lightgreen", alpha=0.6) + 
+  labs(title="Distribution of Likes",
+    y = "Frequency")
+
+p3 <- ggplot(kreek, aes(x=Comments)) + 
+  geom_histogram(bins=20, fill="lightpink", alpha=0.6) + 
+  labs(title="Distribution of Comments",
+    y = "Frequency")
+
+p4 <- ggplot(kreek, aes(x = engagement)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white", alpha = 0.7) +
+  labs(
+    title = "Distribution of Engagement Rate",
+    x = "Engagement (Likes + Comments per View)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+# 2×2 layout
+(p1 | p2) /
+(p3 | p4)
+```
+
+
+## Independent Variables
+
+#### Duration
+
+```{r, echo=FALSE}
+ggplot(kreek, aes(x = Duration)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of Video Duration",
+    x = "Duration (seconds)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+```
+
+
+#### Title Characteristcs
+
+```{r}
+
+```
+
+
+
+
+
+```{r, include=FALSE}
+get_game_title <- function(text_vector) {
+  sapply(text_vector, function(txt) {
+    if (is.na(txt) || txt == "") return(NA_character_)
+    txt_low <- tolower(txt)
+
+    # War Thunder (requires BOTH words)
+    if (str_detect(txt_low, "war") && str_detect(txt_low, "thunder")) {
+      return("War Thunder")
+
+    # Dungeons & Dragons (multiple forms)
+    } else if (str_detect(txt_low, "dnd|d&d|dnd5e|ttrpg")) {
+      return("D&D")
+
+    # Roblox
+    } else if (str_detect(txt_low, "roblox")) {
+      return("Roblox")
+
+    # Minecraft
+    } else if (str_detect(txt_low, "minecraft")) {
+      return("Minecraft")
+
+    # Steel A Brainrot
+    } else if (str_detect(txt_low, "steel|brain|rot")) {
+      return("Steel A Brainrot")
+
+    # Dispatch series
+    } else if (str_detect(txt_low, "dispatch|episode|\\b3\\b|\\b4\\b")) {
+      return("Dispatch")
+
+    # Grand Theft Auto (with clean pattern for GTA)
+    } else if (str_detect(txt_low, "grand|theft|auto|\\bgta\\b")) {
+      return("GTA")
+
+    # Fortnite
+    } else if (str_detect(txt_low, "fortnite")) {
+      return("Fortnite")
+
+    # No match
+    } else {
+      return(NA_character_)
+    }
+  })
+}
+
+
+kreek$game_title <- get_game_title(kreek$Title)
+
+
+```
+
+
+
+
+```{r,echo=FALSE}
+ggplot(kreek[!is.na(kreek$game_title), ], aes(x = game_title)) +
+  geom_bar() +
+  labs(title = "Game Mentions in Titles", x = "Game", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+
+
+
+```{r, echo=FALSE}
+title_features <- kreek %>%
+  dplyr::select(any_of(c(
+    "has_all_caps", "has_exclamation", "has_question", "has_dash",
+    "has_period", "has_plus", "has_pipe", "has_comma", "has_dollar"
+  ))) %>%
+  tidyr::pivot_longer(
+    cols = everything(),
+    names_to = "feature",
+    values_to = "present"
+  )
+
+# Compute proportions
+feature_summary <- title_features %>%
+  group_by(feature) %>%
+  summarize(count = sum(present, na.rm = TRUE)) %>%
+  arrange(desc(count))
+
+
+
+ggplot(feature_summary, 
+       aes(x = reorder(feature, count), y = count, fill = feature)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Distribution of Title Characteristics",
+    x = "Feature",
+    y = "Count of Titles"
+  ) +
+  scale_x_discrete(labels = c(
+    "has_all_caps" = "Capital Letters",
+    "has_period" = "Period",
+    "has_dash" = "Dash",
+    "has_exclamation" = "Exclamation Mark",
+    "has_pipe" = "Pipe Symbol",
+    "has_comma" = "Comma",
+    "has_question" = "Question Mark",
+    "has_dollar" = "Dollar Sign",
+    "has_plus" = "Plus Sign"
+  )) +
+  theme_minimal()
+
+```
+
+
+
+
+
+
+
+#### Thumbnail Characterisitcs
+
+```{r}
+
+```
+
+
+#### Face Detected and Emotions 
+
+```{r}
+
+```
+
+
+#### Hue, Saturation
+
+```{r}
+
+```
+
+### Correlation
+
+```{r, include=FALSE}
+kreek_NEW <- kreek %>%
+  dplyr::select(
+    Duration, Views, Likes, Comments, Views_binary, Likes_binary, Comments_binary, Views_ord, Likes_ord, Comments_ord,
+    has_all_caps, has_exclamation, has_question, has_dash,
+    has_period, has_plus, Subscribers, TotalVideos, has_comma, has_pipe, has_dollar, game_title, engagement, engagement_ord, engagement_binary
+  )
+
+corr_data <- kreek_NEW %>%
+  select_if(is.numeric)
+
+# Compute correlation matrix
+cor_matrix <- cor(corr_data, use = "pairwise.complete.obs")
+
+# View matrix
+print(round(cor_matrix, 2))
+
+cor_melt <- reshape2::melt(cor_matrix)
+
+library(plotly)
+
+# Interactive correlation heatmap
+p <- ggplot(cor_melt, aes(x = Var1, y = Var2, fill = value, text = round(value, 2))) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low = "#B2182B", mid = "white", high = "#2166AC",
+    midpoint = 0, limit = c(-1, 1), name = "Correlation"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 8),
+    axis.text.y = element_text(size = 8)
+  ) +
+  coord_fixed() +
+  labs(title = "Correlation Matrix", x = "", y = "")
+p
+```
+
+
+
+
+# Analysis
+
+## Views
+
+## Likes
+
+## Comments
