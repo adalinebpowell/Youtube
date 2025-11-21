@@ -1,0 +1,58 @@
+import pandas as pd
+import cv2
+import requests
+import numpy as np
+from tqdm import tqdm
+ 
+# Load YouTube Haar Cascade face detector
+face_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+)
+ 
+# Load your dataset
+df = pd.read_csv("kreek_dataset.csv")
+ 
+# Make sure VideoID column exists
+if "VideoID" not in df.columns:
+    raise KeyError("Column 'VideoID' not found in dataset!")
+ 
+def detect_face_from_video_id(video_id):
+    """Downloads YouTube thumbnail and detects any human faces."""
+    try:
+        url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        response = requests.get(url, timeout=10)
+ 
+        # If maxres doesn't exist, try default resolution
+        if response.status_code != 200:
+            url = f"https://img.youtube.com/vi/{video_id}/default.jpg"
+            response = requests.get(url, timeout=10)
+ 
+        img_array = np.frombuffer(response.content, np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+ 
+        if img is None:
+            return 0  # Can't read image → treat as no face
+ 
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+ 
+        faces = face_cascade.detectMultiScale(
+            gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+        )
+ 
+        return 1 if len(faces) > 0 else 0
+ 
+    except Exception:
+        return 0
+ 
+# Run detector for each row
+face_results = []
+for vid in tqdm(df["VideoID"], desc="Processing thumbnails"):
+    face_results.append(detect_face_from_video_id(vid))
+ 
+# Add new column
+df["FacePresent"] = face_results
+ 
+# Save results
+df.to_csv("kreek_dataset_with_faces.csv", index=False)
+ 
+print("DONE — New file saved as kreek_dataset_with_faces.csv")
