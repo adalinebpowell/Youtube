@@ -1,0 +1,140 @@
+------------------------
+#### Binary and Ordinal Variables
+------------------------
+
+kreek <- kreek %>%
+  mutate(
+    Views_binary  = ifelse(Views   > median(Views, na.rm = TRUE), 1, 0),
+    Likes_binary  = ifelse(Likes   > median(Likes, na.rm = TRUE), 1, 0),
+    Comments_binary = ifelse(Comments > median(Comments, na.rm = TRUE), 1, 0),
+
+    Views_ord  = cut(Views, 
+                     breaks = quantile(Views, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE), 
+                     labels = c("Low", "Medium", "High", "Very High"), include.lowest = TRUE),
+
+    Likes_ord  = cut(Likes, 
+                     breaks = quantile(Likes, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE), 
+                     labels = c("Low", "Medium", "High", "Very High"), include.lowest = TRUE),
+
+    Comments_ord  = cut(Comments, 
+                        breaks = quantile(Comments, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE), 
+                        labels = c("Low", "Medium", "High", "Very High"), include.lowest = TRUE)
+  )
+
+
+## Engagment Variable
+
+kreek$engagement <- (kreek$Likes + kreek$Comments) / kreek$Views
+
+kreek <- kreek %>%
+  mutate(engagement_ord = cut(engagement,
+                              breaks = quantile(engagement, probs = seq(0, 1, 0.25), na.rm = TRUE),
+                              labels = c("Low", "Medium", "High", "Very High"),
+                              include.lowest = TRUE))
+kreek <- kreek %>%
+  mutate(
+    engagement = (Likes + Comments) / Views,
+    engagement_binary = ifelse(engagement > median(engagement, na.rm = TRUE), 1, 0)
+  )
+
+------------------------
+#### Title Characterisitcs
+------------------------
+
+library(stringi)
+
+
+# Example: Using kreek$Title
+kreek <- kreek %>%
+  mutate(
+    has_all_caps = ifelse(str_detect(Title, "\\b[A-Z]{2,}\\b"), 1, 0),
+    title_length = nchar(Title),
+    has_exclamation = ifelse(str_detect(Title, "!"), 1, 0),
+    has_question    = ifelse(str_detect(Title, "\\?"), 1, 0),
+    has_dash        = ifelse(str_detect(Title, "-"), 1, 0),
+    has_period      = ifelse(str_detect(Title, "\\."), 1, 0),
+    has_plus        = ifelse(str_detect(Title, "\\+"), 1, 0),
+    has_pipe        = ifelse(str_detect(Title, "\\|"), 1, 0),
+    has_comma       = ifelse(str_detect(Title, ","), 1, 0),
+    has_dollar = ifelse(str_detect(Title, "\\$"), 1, 0)
+  )
+
+
+------------------------
+#### Short description
+------------------------
+get_short_descrip <- function(text_vector) {
+  sapply(text_vector, function(txt) {
+    if (is.na(txt) || txt == "") return("")
+    parts <- unlist(strsplit(txt, "\\n\\s*\\n"))  # split at paragraph gaps
+    str_trim(parts[1])
+  })
+}
+
+
+kreek$short_descrip <- get_short_descrip(kreek$Description)
+
+------------------------
+#### Game In title
+------------------------
+
+get_game_title <- function(text_vector) {
+  sapply(text_vector, function(txt) {
+    if (is.na(txt) || txt == "") return(NA_character_)
+    txt_low <- tolower(txt)
+
+    # War Thunder (requires BOTH words)
+    if (str_detect(txt_low, "war") && str_detect(txt_low, "thunder")) {
+      return("War Thunder")
+
+    # Dungeons & Dragons (multiple forms)
+    } else if (str_detect(txt_low, "dnd|d&d|dnd5e|ttrpg")) {
+      return("D&D")
+
+    # Roblox
+    } else if (str_detect(txt_low, "roblox")) {
+      return("Roblox")
+
+    # Minecraft
+    } else if (str_detect(txt_low, "minecraft")) {
+      return("Minecraft")
+
+    # Steel A Brainrot
+    } else if (str_detect(txt_low, "steel|brain|rot")) {
+      return("Steel A Brainrot")
+
+    # Dispatch series
+    } else if (str_detect(txt_low, "dispatch|episode|\\b3\\b|\\b4\\b")) {
+      return("Dispatch")
+
+    # Grand Theft Auto (with clean pattern for GTA)
+    } else if (str_detect(txt_low, "grand|theft|auto|\\bgta\\b")) {
+      return("GTA")
+
+    # Fortnite
+    } else if (str_detect(txt_low, "fortnite")) {
+      return("Fortnite")
+
+    # No match
+    } else {
+      return(NA_character_)
+    }
+  })
+}
+
+
+kreek$game_title <- get_game_title(kreek$Title)
+
+------------------------
+#### Dummy Variables
+------------------------
+
+
+kreek$game_dummy <- ifelse(is.na(kreek$game_title), 0, 1)
+kreek$influencer_dummy <- ifelse(is.na(kreek$influencer), 0, 1)
+
+
+
+
+
+
